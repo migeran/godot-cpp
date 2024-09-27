@@ -44,6 +44,7 @@
 // Needs to come after method_bind and object have been included.
 #include <godot_cpp/variant/callable_method_pointer.hpp>
 
+#include <functional>
 #include <list>
 #include <mutex>
 #include <set>
@@ -107,6 +108,7 @@ private:
 	static std::vector<StringName> class_register_order;
 	static std::unordered_map<StringName, Object *> engine_singletons;
 	static std::mutex engine_singletons_mutex;
+	static std::vector<std::function<void(void)>> class_deinitialization_functions;
 
 	static MethodBind *bind_methodfi(uint32_t p_flags, MethodBind *p_bind, const MethodDefinition &method_name, const void **p_defs, int p_defcount);
 	static void initialize_class(const ClassInfo &cl);
@@ -164,6 +166,10 @@ public:
 			return;
 		}
 		engine_singletons[p_class_name] = p_singleton;
+	}
+
+	static void register_class_deinitialization_function(std::function<void(void)> p_deinit_function) {
+		class_deinitialization_functions.push_back(p_deinit_function);
 	}
 
 	static void _unregister_engine_singleton(const StringName &p_class_name) {

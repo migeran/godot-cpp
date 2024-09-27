@@ -708,7 +708,7 @@ def generate_builtin_class_header(builtin_api, size, used_classes, fully_used_cl
         result.append("\tfriend class StringName;")
 
     result.append("")
-    result.append("\tstatic struct _MethodBindings {")
+    result.append("\tstatic inline struct _MethodBindings {")
 
     result.append("\t\tGDExtensionTypeFromVariantConstructorFunc from_variant_constructor;")
 
@@ -807,6 +807,9 @@ def generate_builtin_class_header(builtin_api, size, used_classes, fully_used_cl
                     result.append("\t};")
             else:
                 result.append(f'\tstatic const {correct_type(constant["type"])} {constant["name"]};')
+
+    if builtin_api["has_destructor"]:
+        result.append("\tstatic void deinitialize();")
 
     if builtin_api["has_destructor"]:
         result.append(f"\t~{class_name}();")
@@ -1091,13 +1094,14 @@ def generate_builtin_class_source(builtin_api, size, used_classes, fully_used_cl
         result.append("")
 
     result.append("#include <godot_cpp/core/builtin_ptrcall.hpp>")
+    if builtin_api["has_destructor"]:
+        result.append("#include <godot_cpp/core/class_db.hpp>")
     result.append("")
     result.append("#include <utility>")
     result.append("")
     result.append("namespace godot {")
     result.append("")
 
-    result.append(f"{class_name}::_MethodBindings {class_name}::_method_bindings;")
     result.append("")
 
     result.append(f"void {class_name}::_init_bindings_constructors_destructor() {{")
@@ -1116,6 +1120,9 @@ def generate_builtin_class_source(builtin_api, size, used_classes, fully_used_cl
         result.append(
             f"\t_method_bindings.destructor = internal::gdextension_interface_variant_get_ptr_destructor({enum_type_name});"
         )
+
+    if builtin_api["has_destructor"]:
+        result.append("\tClassDB::register_class_deinitialization_function(deinitialize);")
 
     result.append("}")
 
@@ -1238,8 +1245,15 @@ def generate_builtin_class_source(builtin_api, size, used_classes, fully_used_cl
     result.append("")
 
     if builtin_api["has_destructor"]:
+        result.append(f"void {class_name}::deinitialize() {{")
+        result.append("\tmemset(&_method_bindings, 0, sizeof(_MethodBindings));")
+        result.append("}")
+        result.append("")
+
+    if builtin_api["has_destructor"]:
         result.append(f"{class_name}::~{class_name}() {{")
-        result.append("\t_method_bindings.destructor(&opaque);")
+        result.append("\tif (_method_bindings.destructor)")
+        result.append("\t\t_method_bindings.destructor(&opaque);")
         result.append("}")
         result.append("")
 

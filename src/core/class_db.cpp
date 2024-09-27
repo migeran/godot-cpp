@@ -46,6 +46,7 @@ std::vector<StringName> ClassDB::class_register_order;
 std::unordered_map<StringName, Object *> ClassDB::engine_singletons;
 std::mutex ClassDB::engine_singletons_mutex;
 GDExtensionInitializationLevel ClassDB::current_level = GDEXTENSION_INITIALIZATION_CORE;
+std::vector<std::function<void(void)>> ClassDB::class_deinitialization_functions;
 
 MethodDefinition D_METHOD(StringName p_name) {
 	return MethodDefinition(p_name);
@@ -435,6 +436,9 @@ void ClassDB::deinitialize(GDExtensionInitializationLevel p_level) {
 		}
 		for (std::vector<Object *>::iterator i = singleton_objects.begin(); i != singleton_objects.end(); i++) {
 			internal::gdextension_interface_object_free_instance_binding((*i)->_owner, internal::token);
+		}
+		for (std::vector<std::function<void(void)>>::reverse_iterator i = class_deinitialization_functions.rbegin(); i != class_deinitialization_functions.rend(); i++) {
+			(*i)();
 		}
 	}
 }
